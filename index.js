@@ -5,7 +5,10 @@ const fs = require('fs');
 
 const jar = request.jar();
 
+const placeholderHtml = '<html><body></body></html>';
 const homepage = 'http://s6.zetaboards.com/EmpireLost/index/';
+const hostname = 'http://s6.zetaboards.com/EmpireLost';
+
 
 // general utility functions
 
@@ -78,6 +81,56 @@ function getForumId(forumUrl) {
   return match && match[1] ? match[1] : undefined;
 }
 
+async function getThreadPage(threadId, page) {
+  let html;
+  const url = `${hostname}/topic/${threadId}/${page}/`;
+  try {
+    html = await getUrl(url);
+  } catch(e) {
+    console.warn('Unable to get ', url + ':');
+    console.warn(e);
+    html = placeholderHtml;
+  }
+  return html;
+}
+
+function scrapeThread(html) {
+  const postHeaderSelector = 'td.c_postinfo';
+  const postSelector = 'td.c_post';  
+  const document = getDocument(html);
+  const postHeaders = querySelectorAll(document, postHeaderSelector).map(postinfo => postinfo.parentNode);
+  const posts = querySelectorAll(document, postSelector);
+  posts.forEach((post, i) => {
+    const header = postHeaders[i];
+    const poster = header.querySelector('a.member').innerHTML.trim();   
+    const timestamp = header.querySelector('.c_postinfo span').innerHTML.trim();
+    const postText = post.innerHTML.trim()
+
+    // TODO save post index (and post id, for anti-duplication insurance?)
+    // TODO save poster avatar? join date?
+
+    console.log(poster);
+    console.log(timestamp);
+    console.log(postText);
+    console.log('\n');
+  });
+}
+
+const forumListingQs = 'cutoff=5000&sort_by=DESC&sort_key=last_unix';
+
+async function walkForum(forumId) {
+  const threads = [];
+
+  // ... walk forum and collect threads. return list of thread ids
+}
+
+
+async function walkThread(threadId) {
+  const posts = [];
+
+  const firstPage = getThreadPage(threadId, 1)
+}
+
 // async function walkThreads(forumUrl, forumName='home', visited={}) {
 //   const forum = { url: forumUrl, name: forumName, subforums: {} };
   
@@ -119,6 +172,10 @@ const cookiePath = process.argv[2];
 setCookies(jar, loadCookies(cookiePath), homepage);
    
 (async () => {
-  const forums = await getForums(homepage);
-  console.log('Forums:\n', forums);
+  // const forums = await getForums(homepage);
+  // console.log('Forums:\n', forums);
+
+  const page = await getThreadPage(470441, 1);
+  await scrapeThread(page);
+  // console.log(page);
 })();
