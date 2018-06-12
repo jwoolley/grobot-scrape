@@ -1,0 +1,9 @@
+{
+  "name": "grobot-scrape",
+  "version": "1.0.0",
+  "dependencies": {
+    "jsdom": "11.11.0",
+    "request": "^2.34.0",
+    "request-promise-native": "1.0.5"
+  }
+}
