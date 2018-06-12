@@ -1,10 +1,13 @@
 const request = require('request-promise-native');
 const jsdom = require('jsdom').JSDOM;
+const encoder = require('js-htmlencode');
 const fs = require('fs');
 
 const jar = request.jar();
 
 const homepage = 'http://s6.zetaboards.com/EmpireLost/index/';
+
+// request utility functions
 
 function loadCookies(filepath) {
   const data = fs.readFileSync(filepath);
@@ -26,50 +29,36 @@ async function getUrl(url) {
   }
 }
 
-function getLinks(html) {
-  return html.match(/href='.*?'|href=".*?"/g)
-    .reduce((links, link) => {
-      try {
-        var match = link.match(/href='(.*?)'|href="(.*?)"/);
-        links.push(match[1] || match[2]);
-      } catch(e) {
-        console.warn('Unable to parse link from ' + link);
-      }
-      return links;
-    }, []);
-}
+// JSDOM utility functions
 
-async function getSubforumLinks(forumUrl) {
-  const html = await getUrl(forumUrl);
-  return getLinks(html).filter(link => link.match(/^.*\/forum\/.*$/));
-}
-
-async function getThreadLinks(forumUrl) {
-  const html = await getUrl(forumUrl);
-  const forums = getLinks(html).filter(link => link.match(/^.*\/topic\/.*$/));
+function getDocument(html) {
+  return new jsdom(html).window.document;
 }
 
 function querySelectorAll(element, selector) {
   return Array.prototype.slice.call(element.querySelectorAll(selector));
 }
 
-function getDocument(html) {
-  return new jsdom(html).window.document;
-}
+// DOM parsing functions
 
-function testJsdom(html) { 
-  //Array.prototype.slice.call(document.querySelectorAll('#nav li span')).pop().innerHTML
-
-  // const dom = new jsdom(html);
-  // // console.log(dom.window.document.body.innerHTML);
-
-  // console.log(dom.window.document.querySelectorAll('a').filter);
+function getLinks(html) {
   const document = getDocument(html);
   const links = querySelectorAll(document, 'a');
-  console.log('links.filter: ' + links.filter);
+  return links.filter(link => !!link.href).map(link => { return {url: link.href, text: link.innerHTML}; });
 }
 
-const visited = {};
+async function getSubforumLinks(forumUrl) {
+  const html = await getUrl(forumUrl);
+  return getLinks(html).filter(link => link.url.match(/^.*\/forum\/.*$/));
+}
+
+async function getThreadLinks(forumUrl) {
+  const html = await getUrl(forumUrl);
+  const forums = getLinks(html).filter(link => link.url.match(/^.*\/topic\/.*$/));
+}
+
+
+// scraping logic
 
 if (!process.argv[2]) {
   console.log('usage: node index.js [path-to-cookie]');
@@ -77,11 +66,11 @@ if (!process.argv[2]) {
 }
 const cookiePath = process.argv[2];
 
+const visited = {};
+
 setCookies(jar, loadCookies(cookiePath), homepage);
 
 (async () => {
-  // var subforums = await getSubforumLinks(homepage);
-  // console.log(subforums);
-
-  testJsdom(await getUrl(homepage));
+  var forums = await getSubforumLinks(homepage);
+  forums.forEach(forum => { console.log(encoder.htmlDecode(forum.text));} );
 })();
