@@ -11,6 +11,10 @@ const hostname = 'http://s6.zetaboards.com/EmpireLost';
 const loginPage = 'http://s6.zetaboards.com/EmpireLost/login/log_in/';
 const testPage = 'http://s6.zetaboards.com/EmpireLost/topic/8785539/1/';
 
+const requestOptions = {
+  postsPerPage: '100'
+};
+
 // general utility functions
 
 function hash(str) {
@@ -45,13 +49,20 @@ function setCookies(jar, cookies, url) {
   });
 }
 
-async function getUrl(url, jar) {
-  console.log('request: ' + url);
+async function getUrl(url, jar, qs) {
+  console.log(`--> ${url}`);
   try {
-    return await request.get({url: url, jar: jar});
+    return await request.get({url: url, qs: qs, jar: jar});
   } catch (e) {
     console.log(e);
   }
+}
+
+async function getPage(url, jar) {
+  const qs = {
+    x: requestOptions.postsPerPage
+  };
+  return getUrl(url, jar, qs);
 }
 
 // JSDOM utility functions
@@ -66,6 +77,11 @@ function querySelectorAll(element, selector) {
 
 // DOM parsing functions
 
+// gets text of the current element, not including text of child elements
+function getTextOnly(element) {
+  return Array.prototype.reduce.call(element.childNodes,(a, b) => { return a + (b.nodeType === 3 ? b.textContent : ''); }, '');
+}
+
 function getLinks(html) {
   const document = getDocument(html);
   const links = querySelectorAll(document, 'a');
@@ -73,12 +89,12 @@ function getLinks(html) {
 }
 
 async function getForumLinks(forumUrl, jar) {
-  const html = await getUrl(forumUrl, jar);
+  const html = await getPage(forumUrl, jar);
   return getLinks(html).filter(link => link.url.match(/^.*\/forum\/.*$/));
 }
 
 async function getThreadLinks(forumUrl, jar) {
-  const html = await getUrl(forumUrl, jar);
+  const html = await getPage(forumUrl, jar);
   const forums = getLinks(html).filter(link => link.url.match(/^.*\/topic\/.*$/));
 }
 
@@ -91,13 +107,21 @@ async function getThreadPage(threadId, page, jar) {
   let html;
   const url = `${hostname}/topic/${threadId}/${page}/`;
   try {
-    html = await getUrl(url, jar);
+    html = await getPage(url, jar);
   } catch(e) {
     console.warn('Unable to get ', url + ':');
     console.warn(e);
     html = placeholderHtml;
   }
   return html;
+}
+
+// thread page has page links past the current page
+function getNumPages(html) {
+  const lastPageLinkLocator = 'ul.cat-pages li:last-child a';
+  const document = getDocument(html);
+  const lastPageLink = document.querySelector(lastPageLinkLocator);
+  return lastPageLink && parseInt(lastPageLink.innerHTML) ? parseInt(lastPageLink.innerHTML) : 1;
 }
 
 function scrapeThread(html) {
@@ -128,14 +152,56 @@ const forumListingQs = 'cutoff=5000&sort_by=DESC&sort_key=last_unix';
 async function walkForum(forumId, jar) {
   const threads = [];
 
+
   // ... walk forum and collect threads. return list of thread ids
 }
 
+function getThreadInfo(html)  {
+  function getThreadTitle(document) {
+    const threadTitleLocator = '#topic_viewer th';    
+    return getTextOnly(document.querySelector(threadTitleLocator)).trim().match(/^(.*?);?$/)[1];
+  }
+
+  function getThreadSubtitle(document) {
+    const threadSubtitleLocator = '#topic_viewer th small';    
+    const subtitle = document.querySelector(threadSubtitleLocator);
+    return subtitle ? subtitle.textContent.trim() : undefined;
+  }
+
+  function getThreadAuthor(document) {
+    const firstPosterSelector = '#topic_viewer tbody td.c_username';
+    return document.querySelector(firstPosterSelector).textContent.trim();
+  }
+
+  const document = getDocument(html);
+
+  return {
+    title:    getThreadTitle(document),
+    subtitle: getThreadSubtitle(document),
+    author:   getThreadAuthor(document) 
+  };
+}
 
 async function walkThread(threadId, jar) {
   const posts = [];
 
-  const firstPage = getThreadPage(threadId, 1, jar)
+  const html = await getThreadPage(threadId, 1, jar);
+  const totalPages = getNumPages(html);
+
+  //TODO: additional page info: page count, track # posts, parent forum, locked status
+
+  const threadInfo = getThreadInfo(html);
+
+  console.log(`*******************************************************************************************************`);
+  console.log(`*\n* ${threadInfo.title}${threadInfo.subtitle ? '; ' + threadInfo.subtitle : ''} [${threadInfo.author}]\n*`);
+  console.log(`*******************************************************************************************************`);
+
+  console.log(`\n========= Page 1 =========`);
+  scrapeThread(html);
+  for (var i = 2; i <= totalPages; i++) {
+    console.log(`\n========= Page ${i} =========`);    
+    scrapeThread(await getThreadPage(threadId, i, jar));
+  }
 }
 
 // async function walkThreads(forumUrl, forumName='home', visited={}) {
@@ -177,7 +243,7 @@ if (!process.argv[2]) {
 const filePath = process.argv[2];
 
 async function login(loginUrl, credentials, jar) {
-  console.log('request: ' + loginUrl);
+  console.log(`--> ${loginUrl}`);
   const options = {
     method: 'POST',
     url: loginUrl,
@@ -191,24 +257,21 @@ async function login(loginUrl, credentials, jar) {
   }
   try {
     const response = await request.get(options);
-    // console.log('cookies: ', jar.getCookieString(loginUrl));
   } catch (e) {
     console.log(e);
   }
 }
 
 const credentials = loadCredentials('./' + filePath);
-console.log('credentials:', credentials);
 
 (async () => {
   await login(loginPage, credentials, jar);
 
-  const page = await getThreadPage(8905568, 1, jar);
-  await scrapeThread(page);
+  // const page = await getThreadPage(10007962, 1, jar);
+  // await scrapeThread(page);
   // console.log(page);
 
-  // const html = await getUrl(testPage, jar);
-  // console.log(html);
+  await walkThread(10007962, jar);
 })();
 
 // setCookies(jar, loadCookies(filePath), homepage);
