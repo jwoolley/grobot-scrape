@@ -8,7 +8,8 @@ const jar = request.jar();
 const placeholderHtml = '<html><body></body></html>';
 const homepage = 'http://s6.zetaboards.com/EmpireLost/index/';
 const hostname = 'http://s6.zetaboards.com/EmpireLost';
-
+const loginPage = 'http://s6.zetaboards.com/EmpireLost/login/log_in/';
+const testPage = 'http://s6.zetaboards.com/EmpireLost/topic/8785539/1/';
 
 // general utility functions
 
@@ -32,14 +33,19 @@ function loadCookies(filepath) {
   return data.toString().split(/;/g);
 }
 
+function loadCredentials(filepath) {
+  return require(filepath);
+}
+
 function setCookies(jar, cookies, url) {
+  console.log('setting cookies:', cookies);
   cookies.forEach(entry => {
     const cookie = request.cookie(entry.trim());
     jar.setCookie(cookie, url);
   });
 }
 
-async function getUrl(url) {
+async function getUrl(url, jar) {
   console.log('request: ' + url);
   try {
     return await request.get({url: url, jar: jar});
@@ -66,13 +72,13 @@ function getLinks(html) {
   return links.filter(link => !!link.href).map(link => { return {url: link.href, text: link.innerHTML}; });
 }
 
-async function getForumLinks(forumUrl) {
-  const html = await getUrl(forumUrl);
+async function getForumLinks(forumUrl, jar) {
+  const html = await getUrl(forumUrl, jar);
   return getLinks(html).filter(link => link.url.match(/^.*\/forum\/.*$/));
 }
 
-async function getThreadLinks(forumUrl) {
-  const html = await getUrl(forumUrl);
+async function getThreadLinks(forumUrl, jar) {
+  const html = await getUrl(forumUrl, jar);
   const forums = getLinks(html).filter(link => link.url.match(/^.*\/topic\/.*$/));
 }
 
@@ -81,11 +87,11 @@ function getForumId(forumUrl) {
   return match && match[1] ? match[1] : undefined;
 }
 
-async function getThreadPage(threadId, page) {
+async function getThreadPage(threadId, page, jar) {
   let html;
   const url = `${hostname}/topic/${threadId}/${page}/`;
   try {
-    html = await getUrl(url);
+    html = await getUrl(url, jar);
   } catch(e) {
     console.warn('Unable to get ', url + ':');
     console.warn(e);
@@ -98,6 +104,7 @@ function scrapeThread(html) {
   const postHeaderSelector = 'td.c_postinfo';
   const postSelector = 'td.c_post';  
   const document = getDocument(html);
+  
   const postHeaders = querySelectorAll(document, postHeaderSelector).map(postinfo => postinfo.parentNode);
   const posts = querySelectorAll(document, postSelector);
   posts.forEach((post, i) => {
@@ -118,17 +125,17 @@ function scrapeThread(html) {
 
 const forumListingQs = 'cutoff=5000&sort_by=DESC&sort_key=last_unix';
 
-async function walkForum(forumId) {
+async function walkForum(forumId, jar) {
   const threads = [];
 
   // ... walk forum and collect threads. return list of thread ids
 }
 
 
-async function walkThread(threadId) {
+async function walkThread(threadId, jar) {
   const posts = [];
 
-  const firstPage = getThreadPage(threadId, 1)
+  const firstPage = getThreadPage(threadId, 1, jar)
 }
 
 // async function walkThreads(forumUrl, forumName='home', visited={}) {
@@ -154,10 +161,10 @@ async function walkThread(threadId) {
 
 // scraping logic
 
-async function getForums(forumUrl) {
+async function getForums(forumUrl, jar) {
   const forum = { url: forumUrl, name: 'home', subforums: [] };
   
-  const subforums = await getForumLinks(forumUrl);
+  const subforums = await getForumLinks(forumUrl, jar);
   subforums.forEach(subforum => forum.subforums.push({ id: getForumId(subforum.url), url: subforum.url, name: subforum.text }));
 
   return forum;
@@ -167,15 +174,50 @@ if (!process.argv[2]) {
   console.log('usage: node index.js [path-to-cookie]');
   process.exit(0);
 }
-const cookiePath = process.argv[2];
+const filePath = process.argv[2];
 
-setCookies(jar, loadCookies(cookiePath), homepage);
-   
+async function login(loginUrl, credentials, jar) {
+  console.log('request: ' + loginUrl);
+  const options = {
+    method: 'POST',
+    url: loginUrl,
+    form: { 
+      uname: credentials.username,
+      pw: credentials.password,
+    },
+    headers: {},
+    simple: false,
+    jar: jar
+  }
+  try {
+    const response = await request.get(options);
+    // console.log('cookies: ', jar.getCookieString(loginUrl));
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+const credentials = loadCredentials('./' + filePath);
+console.log('credentials:', credentials);
+
 (async () => {
-  // const forums = await getForums(homepage);
-  // console.log('Forums:\n', forums);
+  await login(loginPage, credentials, jar);
 
-  const page = await getThreadPage(470441, 1);
+  const page = await getThreadPage(8905568, 1, jar);
   await scrapeThread(page);
   // console.log(page);
+
+  // const html = await getUrl(testPage, jar);
+  // console.log(html);
 })();
+
+// setCookies(jar, loadCookies(filePath), homepage);
+   
+// (async () => {
+//   // const forums = await getForums(homepage);
+//   // console.log('Forums:\n', forums);
+
+//   const page = await getThreadPage(8905568, 1);
+//   // await scrapeThread(page);
+//   console.log(page);
+// })();

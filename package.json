@@ -2,7 +2,7 @@
   "name": "grobot-scrape",
   "version": "1.0.0",
   "scripts": {
-    "start": "node index.js local/cookie"
+    "start": "node index.js local/credentials"
   },
   "dependencies": {
     "js-htmlencode": "0.3.0",
