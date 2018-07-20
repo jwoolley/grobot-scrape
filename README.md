@@ -9,3 +9,5 @@ To scrape as a logged-in user, you'll need to get a valid auth cookie from the w
 	930418sess=00727d185d50c5e9d780745
 5) save this string to a (local) file (in an ignored directory. don't commit it to git!)
 6) run "node index.js path/to/cookie-file"
+
+If you save the file to local/cookie you can use "npm run start" to run the script.

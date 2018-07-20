@@ -22,6 +22,10 @@ function hash(str) {
   return btoa(hash);
 }
 
+const DEBUG = false;
+
+const debug = DEBUG ? console : { log: () => {} };
+
 // request utility functions
 
 function loadCookies(filepath) {
@@ -45,6 +49,7 @@ async function getUrl(url) {
   }
 }
 
+
 // JSDOM utility functions
 
 function getDocument(html) {
@@ -57,57 +62,75 @@ function querySelectorAll(element, selector) {
 
 // DOM parsing functions
 
-function getLinks(html) {
+function getLinks(html, locator='a') {
   const document = getDocument(html);
-  const links = querySelectorAll(document, 'a');
+  const links = querySelectorAll(document, locator);
   return links.filter(link => !!link.href).map(link => { return {url: link.href, text: link.innerHTML}; });
+}
+
+function getParentForumFromHtml(html) {
+  const document = getDocument(html);
+  return Array.prototype.slice.call(document.querySelector('#nav').querySelectorAll('li'), 0).filter(el => el.textContent && el.textContent.length > 0 && el.textContent !== ">").slice(-2)[0].textContent;
 }
 
 async function getForumLinks(forumUrl) {
   const html = await getUrl(forumUrl);
-  return getLinks(html).filter(link => link.url.match(/^.*\/forum\/.*$/));
+  return getLinks(html, '.forums a').filter(link => link.url.match(/^.*\/forum\/.*$/));
+}
+
+function getForumLinksFromHtml(html) {
+  return getLinks(html, '.forums a').filter(link => link.url.match(/^.*\/forum\/.*$/));
 }
 
 async function getThreadLinks(forumUrl) {
   const html = await getUrl(forumUrl);
   const forums = getLinks(html).filter(link => link.url.match(/^.*\/topic\/.*$/));
+  // TODO: finish
 }
+
+
 
 function getForumId(forumUrl) {
   const match = forumUrl.match(/forum\/(\d+?)\//);
   return match && match[1] ? match[1] : undefined;
 }
 
-// async function walkThreads(forumUrl, forumName='home', visited={}) {
-//   const forum = { url: forumUrl, name: forumName, subforums: {} };
-  
-//   try {
-//     const subforums = await getForumLinks(forumUrl);
-//     subforums.filter(subforum => !visited[getForumId(subforum.url)]).forEach(async subforum => { 
-//       console.log(`${forumName} subforum:`, subforum);
-//       const subsubforums = await walkThreads(subforum.url, subforum.text, visited);
-//       Object.assign(forum.subforums, subsubforums);
-//       Object.assign(visited, subsubforums.visited);
-//       console.log('subforums:', subsubforums);
-//       console.log(visited, visited);
-//     });
+async function getForums(forumUrl, forumName='home', visited={}, level='*') {
+  debug.log(`\n${level}  Walking ${forumName} (${forumUrl})`);
 
-//     visited[getForumId(forumUrl)] = forum;
-//   } catch (e) {
-//     console.warn(e);
-//   }
-//   return forum;
-// }
+  const forum = { url: forumUrl, name: forumName, subforums: {} };
+  visited[getForumId(forumUrl)] = forumUrl;
+  try {
+    const html = await getUrl(forumUrl);
+    const subforums = getForumLinksFromHtml(html);
+    const parentForum = getParentForumFromHtml(html);
+    Object.assign(forum.subforums, subforums);    
+    debug.log(`${parentForum} > ${forumName}`);
+    subforums.filter(subforum => !visited[getForumId(subforum.url)]).forEach(async subforum => { 
+      const subsubforums = await getForums(subforum.url, subforum.text, visited, level + '*');
+      Object.assign(forum.subforums, subsubforums);
+      Object.assign(visited, subsubforums.visited);
+    });
 
-// scraping logic
 
-async function getForums(forumUrl) {
-  const forum = { url: forumUrl, name: 'home', subforums: [] };
-  
-  const subforums = await getForumLinks(forumUrl);
-  subforums.forEach(subforum => forum.subforums.push({ id: getForumId(subforum.url), url: subforum.url, name: subforum.text }));
 
+    visited[getForumId(forumUrl)] = forum;
+  } catch (e) {
+    console.warn(e);
+  }
   return forum;
+}
+
+class Forum {
+  constructor(name, url) {
+    this.name = name;
+    this.url = url;
+  }
+}
+
+async function getAllForums(forumRoot) {
+  const forums = await getForums(forumRoot);
+  return Object.values(forums.subforums).map(subforum => new Forum(subforum.text, subforum.url));
 }
 
 if (!process.argv[2]) {
@@ -118,7 +141,16 @@ const cookiePath = process.argv[2];
 
 setCookies(jar, loadCookies(cookiePath), homepage);
    
+const forumQueryParams = 'cutoff=1000&sort_by=DESC&x=100';
+
+const urls = {
+  forums: {
+    'home': 'http://s6.zetaboards.com/EmpireLost/index/'
+  }
+};
+
+// test
 (async () => {
-  const forums = await getForums(homepage);
-  console.log('Forums:\n', forums);
+  const forums = await getAllForums(urls.forums.home);
+  console.log(forums);
 })();
