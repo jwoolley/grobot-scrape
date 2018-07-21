@@ -6,7 +6,7 @@ To scrape as a logged-in user, you'll need to get a valid auth cookie from the w
 2) load any page on the site
 3) look at "Cookie" field under "Request Headers" on Headers subtab
 4) cookie value should look something like:
-	930418sess=00727d185d50c5e9d780745
+	930418sess=00727d185d50c5e9d780745; Domain=.s6.zetaboards.com
 5) save this string to a (local) file (in an ignored directory. don't commit it to git!)
 6) run "node index.js path/to/cookie-file"
 
