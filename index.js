@@ -137,12 +137,7 @@ async function getPostDataFromHtml(html) {
     }));
 }
 
-async function getPosts(forumId, threadId) {
-  // TODO: save thread metadata
-
-  const firstPageUrl = `http://s6.zetaboards.com/EmpireLost/topic/${threadId}/1/?${threadQueryParams}`;
-  const html = await getUrl(firstPageUrl);
-
+async function getPostsFromPageHtml(html, forumId, threadId) {
   const postData = await getPostDataFromHtml(html);
   // console.log('post data:', postData);
 
@@ -151,9 +146,41 @@ async function getPosts(forumId, threadId) {
   }
 
   console.log('posts:', postData);
+  return postData;
+}
 
-  // TODO: iterate over subsequent thread pages
+async function getNextThreadPageLink(html) {
+  const document = getDocument(html);
+  const pageLinkElement = document.querySelector('.c_next a');
+  return pageLinkElement ? pageLinkElement.href : undefined;
+}
 
+async function getPosts(forumId, threadId) {
+  // TODO: save thread metadata
+
+  const firstPageUrl = `http://s6.zetaboards.com/EmpireLost/topic/${threadId}/1/?${threadQueryParams}`;
+ 
+  let html = await getUrl(firstPageUrl);
+
+  console.log(`Next page url: ${nextPageUrl}`);
+  const posts = await getPostsFromPageHtml(html, forumId, threadId);
+  console.log(`Found ${posts.length} posts`);
+
+
+  let nextPageUrl = await getNextThreadPageLink(html);
+  while (nextPageUrl) {
+    console.log(`Scraping next page: ${nextPageUrl}`);    
+    html = await getUrl(nextPageUrl);
+    const _posts = await getPostsFromPageHtml(html, forumId, threadId);
+    console.log(`Found ${_posts.length} posts`);
+
+    posts.push.apply(posts, _posts);
+    nextPageUrl = await getNextThreadPageLink(html);
+  }
+  
+  console.log(`Found ${posts.length} total posts`);
+
+  return posts;
 }
 
 async function getThreads(forumUrl) {
@@ -261,7 +288,8 @@ const cookiePath = process.argv[2];
 setCookies(jar, loadCookies(cookiePath), homepage);
    
 const forumQueryParams = 'cutoff=1000&sort_by=DESC&x=100';
-const threadQueryParams = 'cutoff=1000&sort_by=DESC&x=100';
+const threadQueryParams = 'cutoff=1000&sort_by=DESC&x=100'; // for testing
+// const threadQueryParams = 'cutoff=1000&sort_by=DESC&x=10'; // to speed testing
 
 const urls = {
   forums: {
@@ -274,7 +302,7 @@ const urls = {
   const forums = await getAllForums(urls.forums.home);
   debug.log(JSON.stringify(forums, null, '\t'));
 
-  const testForumIndex = 0; // 0, 1, 8
+  const testForumIndex = 9; // 0, 1, 8, 9
 
   const testForum = Object.values(forums)[testForumIndex];
   console.log('TEST FORUM: ', testForum);
