@@ -33,6 +33,9 @@ function arrayFrom(htmlNodeList) {
   return Array.prototype.slice.call(htmlNodeList);
 }
 
+function uniqueArray(ary, filter=e=>e) {
+  return ary.filter((e, index, ary)=>filter(e, index, ary));
+}
 // request utility functions
 
 function loadCookies(filepath) {
@@ -56,7 +59,6 @@ async function getUrl(url) {
   }
 }
 
-
 // JSDOM utility functions
 
 function getDocument(html) {
@@ -71,19 +73,13 @@ function querySelectorAll(element, selector) {
 
 function getLinks(html, locator='a') {
   const document = getDocument(html);
-  const links = querySelectorAll(document, locator);
+  const links = typeof locator === 'function' ? locator(document) : querySelectorAll(document, locator);
   return links.filter(link => !!link.href).map(link => { return {url: link.href, text: link.innerHTML}; });
 }
 
 function getParentForumFromHtml(html) {
   const document = getDocument(html);
   return arrayFrom(document.querySelector('#nav').querySelectorAll('li'), 0).filter(el => el.textContent && el.textContent.length > 0 && el.textContent !== ">").slice(-2)[0].textContent;
-}
-
-function getForumLinksFromHtml(html) {
-  const links = getLinks(html, '.forums .c_forum a').filter(link => link.url.match(/^.*\/forum\/.*$/));
-  debug.log('links found: ', links.map(link => link.text).join());
-  return links;
 }
 
 // get the page count from the html of a forum listing page
@@ -95,7 +91,7 @@ async function getForumPageCount(html) {
   try {
     const navLinks = document.querySelector('.cat-pages');
     if (navLinks) {
-      return querySelectorAll(document, 'li a').map(link => link.textContent).slice(-1)[0];
+      return querySelectorAll(navLinks, 'li a').map(link => link.textContent).slice(-1)[0];
     }
   } catch (e) {
     console.log('Error parsing thread count:', e);
@@ -103,29 +99,38 @@ async function getForumPageCount(html) {
   return 1;
 }
 
+function getForumLinksFromHtml(html) {
+  const links = getLinks(html, '.forums .c_forum a').filter(link => link.url.match(/^.*\/forum\/.*$/));
+  debug.log('links found: ', links.map(link => link.text).join());
+  return links;
+}
+
 async function getThreadsFromHtml(html) {
-  const threads = getLinks(html).filter(link => link.url.match(/^.*\/topic\/.*$/));
+  const threads = getLinks(html, document => 
+    querySelectorAll(document, '.posts td.c_cat-title > a')).filter(link => link.url.match(/^.*\/topic\/.*$/));
   console.log('\nthreads:\n' + threads.map(thread => `${thread.text}: ${thread.url}` ).join('\n'));
-  return threads;
+  return uniqueArray(threads, (e, index, ary)=>ary.findIndex(el => el.url === e.url) === index);
 }
 
 async function getThreads(forumUrl) {
+  // TODO: filter out "moved" threads, e.g. "Music Snob" from http://s6.zetaboards.com/EmpireLost/forum/17467/9?cutoff=1000&sort_by=DESC&x=100
+
   const firstPageUrl = `${forumUrl}1?${forumQueryParams}`;
 
-  console.log(`\nGetting list of threads from Page 1 of ${forumUrl}`);
+  console.log(`Getting list of threads from Page 1 of ${forumUrl}`);
   const html = await getUrl(firstPageUrl);
 
   const pageCount = await getForumPageCount(html);
   console.log('Number of pages: ' + pageCount);
 
-  const threads = await getThreadsFromHtml(html);
+  let threads = await getThreadsFromHtml(html);
 
   console.log(`Found ${threads.length} threads`);
 
   for (let i = 2; i <= pageCount; i++) {
     const _url = `${forumUrl}${i}?${forumQueryParams}`;
 
-    console.log(`\nGetting list of threads from Page ${i} of ${forumUrl}`);
+    console.log(`Getting list of threads from Page ${i} of ${forumUrl}`);
 
     const _html = await getUrl(_url);
     const _threads = await getThreadsFromHtml(_html);
@@ -133,6 +138,8 @@ async function getThreads(forumUrl) {
 
     console.log(`Found ${_threads.length} threads`);
   }
+
+  console.log(`Found ${threads.length} total threads`);
 
   return threads;
 }
@@ -221,9 +228,10 @@ const urls = {
   const forums = await getAllForums(urls.forums.home);
   debug.log(JSON.stringify(forums, null, '\t'));
 
-  const testForumIndex = 0;
+  const testForumIndex = 8;
 
   const testForum = Object.values(forums)[testForumIndex];
+  console.log('TEST FORUM: ', testForum);
   console.log(`Getting links for ${testForum.name} (${testForum.url})`);
   const threads = await getThreads(testForum.url);
 })();
