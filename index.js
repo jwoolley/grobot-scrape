@@ -1,10 +1,12 @@
+const fs = require('fs');
+const path = require('path');
+
 const request = require('request-promise-native');
 const Cookie = require('tough-cookie'); // request sub-dependency
+const jar = request.jar();
 
 const jsdom = require('jsdom').JSDOM;
 const encoder = require('js-htmlencode');
-const fs = require('fs');
-const jar = request.jar();
 
 const homepage = 'http://s6.zetaboards.com/';
 
@@ -112,6 +114,44 @@ async function getThreadsFromHtml(html) {
   return uniqueArray(threads, (e, index, ary)=>ary.findIndex(el => el.url === e.url) === index);
 }
 
+async function getRawPost(postEditUrl) {
+ // http://s6.zetaboards.com/EmpireLost/post/?mode=1&f=17460&t=8949347&p=8409244
+}
+
+async function getPostDataFromHtml(html) {
+  const document = getDocument(html);
+  return querySelectorAll(document, '#topic_viewer tr[id*="post-"]')
+    .map(row => ({ 
+      id: row.id, 
+      date: row.querySelector('.c_postinfo span.left').textContent.trim(),      
+      poster: { 
+        id: row.querySelector('.c_username a').href.match(/profile\/(\d+)\//)[1], 
+        name: row.querySelector('.c_username').textContent.trim()
+      }
+    }));
+}
+
+async function getPosts(forumId, threadId) {
+  // document.querySelectorAll('#topic_viewer tr[id*="post-"]')
+  // all posts on thread page
+
+  // document.querySelectorAll('#topic_viewer tr[id*="post-"]')).map(row => ({ id: row.id, poster: { id: row.querySelector('.c_username a').href.match(/profile\/(\d+)\//)[1], name: row.querySelector('.c_username').textContent.trim() }, date: row.querySelector('.c_postinfo span.left').textContent.trim() }))
+  // posts => object
+
+  // TODO: save thread metadata
+
+  const firstPageUrl = `http://s6.zetaboards.com/EmpireLost/topic/${threadId}/1/?${threadQueryParams}`;
+  const html = await getUrl(firstPageUrl);
+
+  const postData = await getPostDataFromHtml(html);
+  console.log('post data:', postData);
+
+  // TODO: for each post object in postData, call getRawPost to get post content and enter into content property of the object
+
+  // TODO: iterate over subsequent thread pages
+
+}
+
 async function getThreads(forumUrl) {
   // TODO: filter out "moved" threads, e.g. "Music Snob" from http://s6.zetaboards.com/EmpireLost/forum/17467/9?cutoff=1000&sort_by=DESC&x=100
 
@@ -123,7 +163,7 @@ async function getThreads(forumUrl) {
   const pageCount = await getForumPageCount(html);
   console.log('Number of pages: ' + pageCount);
 
-  let threads = await getThreadsFromHtml(html);
+  const threads = await getThreadsFromHtml(html);
 
   console.log(`Found ${threads.length} threads`);
 
@@ -134,9 +174,9 @@ async function getThreads(forumUrl) {
 
     const _html = await getUrl(_url);
     const _threads = await getThreadsFromHtml(_html);
-    threads = threads.concat(_threads);
-
+    
     console.log(`Found ${_threads.length} threads`);
+    threads.push.apply(threads, _threads);
   }
 
   console.log(`Found ${threads.length} total threads`);
@@ -217,6 +257,7 @@ const cookiePath = process.argv[2];
 setCookies(jar, loadCookies(cookiePath), homepage);
    
 const forumQueryParams = 'cutoff=1000&sort_by=DESC&x=100';
+const threadQueryParams = 'cutoff=1000&sort_by=DESC&x=100';
 
 const urls = {
   forums: {
@@ -228,10 +269,20 @@ const urls = {
   const forums = await getAllForums(urls.forums.home);
   debug.log(JSON.stringify(forums, null, '\t'));
 
-  const testForumIndex = 8;
+  const testForumIndex = 0; // 0, 1, 8
 
   const testForum = Object.values(forums)[testForumIndex];
   console.log('TEST FORUM: ', testForum);
   console.log(`Getting links for ${testForum.name} (${testForum.url})`);
+  
+  // TODO: get threads from all forums, save in a table
   const threads = await getThreads(testForum.url);
+
+
+  const testThread = threads[0];
+  const threadId = testThread.url.match(/\/topic\/(\d+)/)[1];
+  const forumId = testForum.url.match(/\/forum\/(\d+)/)[1];
+  console.log(`Scraping thread: ${forumId} > ${threadId}`);
+
+  getPosts(forumId, threadId);
 })();
