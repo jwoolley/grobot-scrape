@@ -1,0 +1,142 @@
+{
+	"17455": {
+		"name": "The Food Forum",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17455/",
+		"subforums": {}
+	},
+	"17458": {
+		"name": "Front Page Admins",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17458/",
+		"subforums": {}
+	},
+	"17460": {
+		"name": "Message board feedback",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17460/",
+		"subforums": {}
+	},
+	"17462": {
+		"name": "No Fighting in the War Room",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17462/",
+		"subforums": {
+			"17459": {
+				"name": "Visual Spoilers",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/17459/",
+				"subforums": {}
+			}
+		}
+	},
+	"17463": {
+		"name": "Miscellaneous Games",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17463/",
+		"subforums": {}
+	},
+	"17464": {
+		"name": "Energizer's Grotesque Rotisserie of Arts &amp; Entertainment",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17464/",
+		"subforums": {
+			"17454": {
+				"name": "MRTV - Music Television",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/17454/",
+				"subforums": {}
+			}
+		}
+	},
+	"17465": {
+		"name": "Look At This Stupid Picture I Found",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17465/",
+		"subforums": {}
+	},
+	"17466": {
+		"name": "Video Games, Comic Books, Anime and Other Reasons Girls Won't Talk to Me",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17466/",
+		"subforums": {
+			"4000011": {
+				"name": "The Hyperbolic Valve Time Chamber",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/4000011/",
+				"subforums": {}
+			}
+		}
+	},
+	"17467": {
+		"name": "Everything",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17467/",
+		"subforums": {
+			"17451": {
+				"name": "no u (should attack France instead)",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/17451/",
+				"subforums": {}
+			},
+			"17453": {
+				"name": "Hidden Forum",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/17453/",
+				"subforums": {}
+			},
+			"17457": {
+				"name": "Floating Hidden Forum",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/17457/",
+				"subforums": {}
+			}
+		}
+	},
+	"17469": {
+		"name": "Smurf's House of Shame",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17469/",
+		"subforums": {}
+	},
+	"17470": {
+		"name": "Energizer's Secret Garden",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17470/",
+		"subforums": {}
+	},
+	"17471": {
+		"name": "FAQ",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17471/",
+		"subforums": {}
+	},
+	"17472": {
+		"name": "Mafiascum Forum",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17472/",
+		"subforums": {}
+	},
+	"17474": {
+		"name": "Game Announcements",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17474/",
+		"subforums": {}
+	},
+	"17475": {
+		"name": "Mafia Game Threads",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17475/",
+		"subforums": {}
+	},
+	"17476": {
+		"name": "Clans Game Threads",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17476/",
+		"subforums": {}
+	},
+	"17486": {
+		"name": "Dreadwald Inn",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/17486/",
+		"subforums": {}
+	},
+	"4008778": {
+		"name": "Nebulous",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/4008778/",
+		"subforums": {
+			"17461": {
+				"name": "The World Famous Floating Card Creation Laboratory",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/17461/",
+				"subforums": {}
+			},
+			"17468": {
+				"name": "Magic Scrapyard",
+				"url": "http://s6.zetaboards.com/EmpireLost/forum/17468/",
+				"subforums": {}
+			}
+		}
+	},
+	"6000759": {
+		"name": "The Moon",
+		"url": "http://s6.zetaboards.com/EmpireLost/forum/6000759/",
+		"subforums": {}
+	}
+}

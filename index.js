@@ -86,10 +86,55 @@ function getForumLinksFromHtml(html) {
   return links;
 }
 
-async function getThreadLinks(forumUrl) {
-  const html = await getUrl(forumUrl);
-  const forums = getLinks(html).filter(link => link.url.match(/^.*\/topic\/.*$/));
-  // TODO: finish this
+// get the page count from the html of a forum listing page
+//  e.g. http://s6.zetaboards.com/EmpireLost/forum/17467/1?cutoff=100&sort_by=DESC&sort_key=last_unix&x=90
+//  parses the last entry from the navigation links
+//  this count can vary for a given forum based the cutoff value (100 is the max)
+async function getForumPageCount(html) {
+  const document = getDocument(html);
+  try {
+    const navLinks = document.querySelector('.cat-pages');
+    if (navLinks) {
+      return querySelectorAll(document, 'li a').map(link => link.textContent).slice(-1)[0];
+    }
+  } catch (e) {
+    console.log('Error parsing thread count:', e);
+  }
+  return 1;
+}
+
+async function getThreadsFromHtml(html) {
+  const threads = getLinks(html).filter(link => link.url.match(/^.*\/topic\/.*$/));
+  console.log('\nthreads:\n' + threads.map(thread => `${thread.text}: ${thread.url}` ).join('\n'));
+  return threads;
+}
+
+async function getThreads(forumUrl) {
+  const firstPageUrl = `${forumUrl}1?${forumQueryParams}`;
+
+  console.log(`\nGetting list of threads from Page 1 of ${forumUrl}`);
+  const html = await getUrl(firstPageUrl);
+
+  const pageCount = await getForumPageCount(html);
+  console.log('Number of pages: ' + pageCount);
+
+  const threads = await getThreadsFromHtml(html);
+
+  console.log(`Found ${threads.length} threads`);
+
+  for (let i = 2; i <= pageCount; i++) {
+    const _url = `${forumUrl}${i}?${forumQueryParams}`;
+
+    console.log(`\nGetting list of threads from Page ${i} of ${forumUrl}`);
+
+    const _html = await getUrl(_url);
+    const _threads = await getThreadsFromHtml(_html);
+    threads = threads.concat(_threads);
+
+    console.log(`Found ${_threads.length} threads`);
+  }
+
+  return threads;
 }
 
 
@@ -143,7 +188,6 @@ async function getForums(forum, visited={}, level='*') {
   return forum.subforums;
 }
 
-
 class Forum {
   constructor(name, url, subforums={}) {
     this.name = name;
@@ -175,5 +219,11 @@ const urls = {
 
 (async () => {
   const forums = await getAllForums(urls.forums.home);
-  console.log(JSON.stringify(forums, null, '\t'));
+  debug.log(JSON.stringify(forums, null, '\t'));
+
+  const testForumIndex = 0;
+
+  const testForum = Object.values(forums)[testForumIndex];
+  console.log(`Getting links for ${testForum.name} (${testForum.url})`);
+  const threads = await getThreads(testForum.url);
 })();
