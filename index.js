@@ -109,20 +109,26 @@ function getForumLinksFromHtml(html) {
 
 async function getThreadsFromHtml(html) {
   const threads = getLinks(html, document => 
-    querySelectorAll(document, '.posts td.c_cat-title > a')).filter(link => link.url.match(/^.*\/topic\/.*$/));
+    querySelectorAll(document, '.posts td.c_cat-title > a'))
+    .filter(link => link.url.match(/^.*\/topic\/.*$/));
+
   console.log('\nthreads:\n' + threads.map(thread => `${thread.text}: ${thread.url}` ).join('\n'));
-  return uniqueArray(threads, (e, index, ary)=>ary.findIndex(el => el.url === e.url) === index);
+  return uniqueArray(threads, (e, index, ary)=>ary.findIndex(el => el.url === e.url) === index).map(thread => ({ name: thread.text, url: thread.url }));
 }
 
-async function getRawPost(postEditUrl) {
- // http://s6.zetaboards.com/EmpireLost/post/?mode=1&f=17460&t=8949347&p=8409244
+async function getRawPost(forumId, threadId, postId) {
+  const editPageUrl = `http://s6.zetaboards.com/EmpireLost/post/?mode=3&f=${forumId}&t=${threadId}&p=${postId}`;
+  const html = await getUrl(editPageUrl);
+  const content = getDocument(html).querySelector('#c_post-wrap textarea').textContent;
+  // console.log('Retreived post content:', content);
+  return content;
 }
 
 async function getPostDataFromHtml(html) {
   const document = getDocument(html);
   return querySelectorAll(document, '#topic_viewer tr[id*="post-"]')
     .map(row => ({ 
-      id: row.id, 
+      id: row.id.match(/post-(\d+)/)[1], 
       date: row.querySelector('.c_postinfo span.left').textContent.trim(),      
       poster: { 
         id: row.querySelector('.c_username a').href.match(/profile\/(\d+)\//)[1], 
@@ -132,21 +138,19 @@ async function getPostDataFromHtml(html) {
 }
 
 async function getPosts(forumId, threadId) {
-  // document.querySelectorAll('#topic_viewer tr[id*="post-"]')
-  // all posts on thread page
-
-  // document.querySelectorAll('#topic_viewer tr[id*="post-"]')).map(row => ({ id: row.id, poster: { id: row.querySelector('.c_username a').href.match(/profile\/(\d+)\//)[1], name: row.querySelector('.c_username').textContent.trim() }, date: row.querySelector('.c_postinfo span.left').textContent.trim() }))
-  // posts => object
-
   // TODO: save thread metadata
 
   const firstPageUrl = `http://s6.zetaboards.com/EmpireLost/topic/${threadId}/1/?${threadQueryParams}`;
   const html = await getUrl(firstPageUrl);
 
   const postData = await getPostDataFromHtml(html);
-  console.log('post data:', postData);
+  // console.log('post data:', postData);
 
-  // TODO: for each post object in postData, call getRawPost to get post content and enter into content property of the object
+  for (post of postData) {
+    post.content = await getRawPost(forumId, threadId, post.id);
+  }
+
+  console.log('posts:', postData);
 
   // TODO: iterate over subsequent thread pages
 
@@ -216,7 +220,7 @@ async function getForums(forum, visited={}, level='*') {
 
     const unvisitedForumLinks = subforumLinks.filter(subforumLink => !EXCLUDED_FORUMS.includes(getForumId(subforumLink.url)) && !visited[getForumId(subforumLink.url)]);
 
-    for (let link of unvisitedForumLinks) {
+    for (link of unvisitedForumLinks) {
       var subforum = new Forum(link.text, link.url);
       subforum.subforums = await getForums(subforum, visited, level + '*');
 
@@ -266,6 +270,7 @@ const urls = {
 };
 
 (async () => {
+  // TODO getAllForums return values should include id property (parsed from forum url)
   const forums = await getAllForums(urls.forums.home);
   debug.log(JSON.stringify(forums, null, '\t'));
 
@@ -275,14 +280,16 @@ const urls = {
   console.log('TEST FORUM: ', testForum);
   console.log(`Getting links for ${testForum.name} (${testForum.url})`);
   
+  // TODO getThreads return values should include id property (parsed from thread url)
   // TODO: get threads from all forums, save in a table
   const threads = await getThreads(testForum.url);
-
 
   const testThread = threads[0];
   const threadId = testThread.url.match(/\/topic\/(\d+)/)[1];
   const forumId = testForum.url.match(/\/forum\/(\d+)/)[1];
-  console.log(`Scraping thread: ${forumId} > ${threadId}`);
+
+  console.log('\nTEST THREAD: ', testThread);  
+  console.log(`Scraping thread '${testThread.name}' (${forumId} > ${threadId})`);
 
   getPosts(forumId, threadId);
 })();
