@@ -38,6 +38,30 @@ function arrayFrom(htmlNodeList) {
 function uniqueArray(ary, filter=e=>e) {
   return ary.filter((e, index, ary)=>filter(e, index, ary));
 }
+
+
+
+function formatTime(date) {
+  let hours = date.getUTCHours();
+  let minutes = date.getUTCMinutes();
+  let seconds = date.getUTCSeconds();
+  let ms = date.getUTCMilliseconds();
+
+  return `${hours ? hours + 'h ' : ''}${minutes ? minutes + 'm ' : ''}${seconds ? seconds + 's' : ms  + 'ms'}`;
+}
+
+// returns the absolute difference between two dates as in H/M/S. assumes difference is less than 24 hours
+function timeDifference(timeAsDate1, timeAsDate2) {
+  const startTime = timeAsDate1  < timeAsDate2 ? timeAsDate1 : timeAsDate2;
+  const endTime = timeAsDate1  < timeAsDate2 ? timeAsDate2 : timeAsDate1;
+  var diff = new Date(endTime.getTime() - startTime.getTime());
+  return diff;
+}
+
+function timeDifferenceReadableString(timeStart, timeEnd) {
+  return formatTime(timeDifference(timeStart, timeEnd));
+}
+
 // request utility functions
 
 function loadCookies(filepath) {
@@ -162,7 +186,7 @@ async function getPosts(forumId, threadId) {
  
   let html = await getUrl(firstPageUrl);
 
-  console.log(`Next page url: ${nextPageUrl}`);
+  console.log(`First page url: ${firstPageUrl}`);
   const posts = await getPostsFromPageHtml(html, forumId, threadId);
   console.log(`Found ${posts.length} posts`);
 
@@ -319,5 +343,9 @@ const urls = {
   console.log('\nTEST THREAD: ', testThread);  
   console.log(`Scraping thread '${testThread.name}' (${forumId} > ${threadId})`);
 
-  getPosts(forumId, threadId);
+  const initialTime = new Date(Date.now());
+  await getPosts(forumId, threadId);
+  const finalTime = new Date(Date.now());
+
+  console.log('Elapsed time to scrape thread: ' + timeDifferenceReadableString(initialTime, finalTime));
 })();
