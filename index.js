@@ -169,7 +169,7 @@ async function getPostsFromPageHtml(html, forumId, threadId) {
     post.content = await getRawPost(forumId, threadId, post.id);
   }
 
-  console.log('posts:', postData);
+  debug.log('posts:', postData);
   return postData;
 }
 
@@ -323,29 +323,89 @@ const urls = {
 
 (async () => {
   // TODO getAllForums return values should include id property (parsed from forum url)
-  const forums = await getAllForums(urls.forums.home);
-  debug.log(JSON.stringify(forums, null, '\t'));
+  // const forums = await getAllForums(urls.forums.home);
+  // debug.log(JSON.stringify(forums, null, '\t'));
 
-  const testForumIndex = 9; // 0, 1, 8, 9
+  // const testForumIndex = 9; // 0, 1, 8, 9
 
-  const testForum = Object.values(forums)[testForumIndex];
-  console.log('TEST FORUM: ', testForum);
-  console.log(`Getting links for ${testForum.name} (${testForum.url})`);
+  // const testForum = Object.values(forums)[testForumIndex];
+  // console.log('TEST FORUM: ', testForum);
+  // console.log(`Getting links for ${testForum.name} (${testForum.url})`);
   
-  // TODO getThreads return values should include id property (parsed from thread url)
-  // TODO: get threads from all forums, save in a table
-  const threads = await getThreads(testForum.url);
+  // // TODO getThreads return values should include id property (parsed from thread url)
+  // // TODO: get threads from all forums, save in a table
+  // const threads = await getThreads(testForum.url);
 
-  const testThread = threads[0];
-  const threadId = testThread.url.match(/\/topic\/(\d+)/)[1];
-  const forumId = testForum.url.match(/\/forum\/(\d+)/)[1];
+  // const testThread = threads[0];
+  // const threadId = testThread.url.match(/\/topic\/(\d+)/)[1];
+  // const forumId = testForum.url.match(/\/forum\/(\d+)/)[1];
 
-  console.log('\nTEST THREAD: ', testThread);  
-  console.log(`Scraping thread '${testThread.name}' (${forumId} > ${threadId})`);
+  // console.log('\nTEST THREAD: ', testThread);  
+  // console.log(`Scraping thread '${testThread.name}' (${forumId} > ${threadId})`);
 
-  const initialTime = new Date(Date.now());
-  await getPosts(forumId, threadId);
-  const finalTime = new Date(Date.now());
+  // const initialTime = new Date(Date.now());
+  // await getPosts(forumId, threadId);
+  // const finalTime = new Date(Date.now());
 
-  console.log('Elapsed time to scrape thread: ' + timeDifferenceReadableString(initialTime, finalTime));
+  // console.log('Elapsed time to scrape thread: ' + timeDifferenceReadableString(initialTime, finalTime));
+
+  const _forums = await getAllForums(urls.forums.home);
+  Object.keys(_forums).forEach(forumId =>  Object.assign(_forums,_forums[forumId].subforums));
+
+  const forums = Object.keys(_forums).reduce((forums, forumId) => {
+    forums.push(Object.assign(_forums[forumId], { id: forumId }));
+    return forums
+  }, []);
+
+  console.log(JSON.stringify(forums, null, '\t'));
+
+  console.log(`\nFound ${forums.length} forums`)
+
+  // FOR DEBUGGING - forums must not be const
+  // forums = forums.slice(Math.max(forums.length - 2, 1))
+
+  const threads = {};
+
+  for (var i = 0; i < forums.length; i++) {
+    const forum = forums[i];
+    threads[forum.id] =  await getThreads(forum.url);
+  }
+
+  console.log('ALL THREADS:\n', Object.keys(threads).reduce((_str, forum) => _str + `\n${_forums[forum].name}: ${threads[forum].length} threads`), '\n');
+
+  const allPosts = [];
+  const initialTimeMax = new Date(Date.now());
+  var totalThreadCount = 0;  
+
+  for (var i = 0; i < forums.length; i++) {
+    const initialForumTime = new Date(Date.now());
+
+    const forum = forums[i];
+    const _threads = threads[forum.id];
+    const posts = [];
+
+    console.log(`Scraping ${forum.name} with ${_threads.length} threads...`)
+
+    for (var j = 0; j < _threads.length; j++) {
+      const thread = _threads[j];
+      const threadId = thread.url.match(/\/topic\/(\d+)/)[1];
+      const initialTime = new Date(Date.now());
+
+      console.log(`Scraping thread '${thread.name}'...`);      
+      const _posts = await getPosts(forum.id, threadId);
+
+      const finalTime = new Date(Date.now());   
+      console.log(`Scraped ${_posts.length} posts from thread '${thread.name}'. Elapsed time: ${timeDifferenceReadableString(initialTime, finalTime)}`) 
+      posts.push(..._posts);
+    }
+
+    totalThreadCount += _threads.length;
+    const finalForumTime = new Date(Date.now());
+    console.log(`Scraped ${posts.length} posts from forum '${forum.name}' with ${_threads.length} threads. Elapsed time: ${timeDifferenceReadableString(initialForumTime, finalForumTime)}`) 
+
+    allPosts.push(...posts);
+    console.log(`Total scraped posts to date: ${posts.length}' in ${totalThreadCount} threads. Elapsed time: ${timeDifferenceReadableString(initialTimeMax, finalForumTime)}`);
+  }
+  const finalForumMax = new Date(Date.now());
+  console.log(`Final total posts scraped: ${allPosts.length}'. Elapsed time: ${timeDifferenceReadableString(initialTimeMax, finalForumMax)}`);
 })();
