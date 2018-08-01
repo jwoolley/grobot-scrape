@@ -321,6 +321,12 @@ const urls = {
   }
 };
 
+// TODO:
+// * try/catch around each thread/forum scrape. catalog what has been scraped (in case of failure)
+// * write everything to dbc
+// * save progress info (and write to db)
+// * scrape poster data (incl. avatars)
+
 (async () => {
   // TODO getAllForums return values should include id property (parsed from forum url)
   // const forums = await getAllForums(urls.forums.home);
@@ -396,14 +402,14 @@ const urls = {
 
       const finalTime = new Date(Date.now());   
       console.log(`Scraped ${_posts.length} posts from thread '${thread.name}'. Elapsed time: ${timeDifferenceReadableString(initialTime, finalTime)}`) 
-      posts.push(..._posts);
+      posts = posts.concat(_posts);
     }
 
     totalThreadCount += _threads.length;
     const finalForumTime = new Date(Date.now());
     console.log(`Scraped ${posts.length} posts from forum '${forum.name}' with ${_threads.length} threads. Elapsed time: ${timeDifferenceReadableString(initialForumTime, finalForumTime)}`) 
 
-    allPosts.push(...posts);
+    allPosts = allPosts.concat(posts);
     console.log(`Total scraped posts to date: ${posts.length}' in ${totalThreadCount} threads. Elapsed time: ${timeDifferenceReadableString(initialTimeMax, finalForumTime)}`);
   }
   const finalForumMax = new Date(Date.now());
